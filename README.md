@@ -108,6 +108,11 @@ public void preheat() { ... }
 
 任务从「一条 cron 配置」到「一次 HTTP 回调」，拆成四个职责单一的阶段，每段只做一件事：
 
+<img src="docs/images/architecture.svg" alt="执行链路：Migrator → Scheduler → Trigger → Executor" width="100%" />
+
+<details>
+<summary>展开 Mermaid 源码</summary>
+
 ```mermaid
 flowchart LR
     A["业务方 / 管理端"] -->|创建·启停| B[("MySQL<br/>xtimer")]
@@ -120,6 +125,8 @@ flowchart LR
     H -->|"HTTP 回调"| I["业务服务"]
     H -->|"回写 status / costTime / output"| D
 ```
+
+</details>
 
 | 阶段 | 核心类 | 触发频率 | 存储介质 | 关键动作 |
 | --- | --- | --- | --- | --- |
