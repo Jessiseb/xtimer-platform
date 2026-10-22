@@ -1,0 +1,972 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>定时任务管理系统</title>
+    <!-- 引入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 Font Awesome -->
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <!-- Tailwind 配置 -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#165DFF',
+                        success: '#00B42A',
+                        warning: '#FF7D00',
+                        danger: '#F53F3F',
+                        info: '#86909C',
+                        dark: '#1D2129',
+                        light: '#F2F3F5'
+                    },
+                    fontFamily: {
+                        inter: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                    boxShadow: {
+                        'card': '0 4px 12px rgba(0, 0, 0, 0.05)',
+                        'hover': '0 6px 16px rgba(22, 93, 255, 0.08)',
+                    }
+                },
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .transition-base {
+                transition: all 0.3s ease;
+            }
+            .card-hover {
+                @apply hover:shadow-hover transition-base cursor-pointer;
+            }
+            .btn-primary {
+                @apply bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary/90 transition-base flex items-center justify-center gap-2;
+            }
+            .btn-secondary {
+                @apply bg-white text-dark border border-gray-200 px-4 py-2 rounded-lg hover:bg-gray-50 transition-base flex items-center justify-center gap-2;
+            }
+            .btn-danger {
+                @apply bg-danger text-white px-4 py-2 rounded-lg hover:bg-danger/90 transition-base flex items-center justify-center gap-2;
+            }
+            .btn-success {
+                @apply bg-success text-white px-4 py-2 rounded-lg hover:bg-success/90 transition-base flex items-center justify-center gap-2;
+            }
+            .btn-warning {
+                @apply bg-warning text-white px-4 py-2 rounded-lg hover:bg-warning/90 transition-base flex items-center justify-center gap-2;
+            }
+            .input-field {
+                @apply w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-base;
+            }
+            .textarea-field {
+                @apply w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-base resize-none;
+            }
+            .table-cell {
+                @apply py-3 px-4 text-left border-b border-gray-200;
+            }
+            .table-header {
+                @apply py-3 px-4 text-left bg-gray-50 font-medium text-gray-600 border-b border-gray-200;
+            }
+        }
+    </style>
+</head>
+<body class="font-inter bg-gray-50 text-dark">
+    <!-- 头部导航 -->
+    <header class="bg-white shadow-sm sticky top-0 z-50">
+        <div class="container mx-auto px-4 py-4 flex justify-between items-center">
+            <div class="flex items-center gap-2">
+                <i class="fa fa-clock-o text-primary text-2xl"></i>
+                <h1 class="text-xl font-bold">定时任务管理系统</h1>
+            </div>
+            <div class="flex items-center gap-4">
+                <div class="relative">
+                    <input type="text" placeholder="搜索任务..." class="input-field w-64 pl-10 py-1.5">
+                    <i class="fa fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                </div>
+                <button class="btn-primary" id="createTimerBtn">
+                    <i class="fa fa-plus"></i>
+                    <span>创建任务</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主内容区 -->
+    <main class="container mx-auto px-4 py-6">
+        <!-- 状态卡片 -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <div class="bg-white rounded-xl p-6 shadow-card card-hover">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <p class="text-info text-sm mb-1">总任务数</p>
+                        <h3 class="text-3xl font-bold" id="totalTasks">0</h3>
+                    </div>
+                    <div class="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center text-primary">
+                        <i class="fa fa-list text-xl"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white rounded-xl p-6 shadow-card card-hover">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <p class="text-info text-sm mb-1">运行中</p>
+                        <h3 class="text-3xl font-bold text-success" id="runningTasks">0</h3>
+                    </div>
+                    <div class="w-12 h-12 bg-success/10 rounded-lg flex items-center justify-center text-success">
+                        <i class="fa fa-play text-xl"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white rounded-xl p-6 shadow-card card-hover">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <p class="text-info text-sm mb-1">已暂停</p>
+                        <h3 class="text-3xl font-bold text-warning" id="pausedTasks">0</h3>
+                    </div>
+                    <div class="w-12 h-12 bg-warning/10 rounded-lg flex items-center justify-center text-warning">
+                        <i class="fa fa-pause text-xl"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white rounded-xl p-6 shadow-card card-hover">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <p class="text-info text-sm mb-1">今日执行</p>
+                        <h3 class="text-3xl font-bold text-primary" id="todayExecutions">0</h3>
+                    </div>
+                    <div class="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center text-primary">
+                        <i class="fa fa-calendar-check-o text-xl"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 任务列表 -->
+        <div class="bg-white rounded-xl shadow-card overflow-hidden mb-6">
+            <div class="p-4 border-b border-gray-100 flex justify-between items-center">
+                <h2 class="text-lg font-semibold">任务列表</h2>
+                <div class="flex gap-2">
+                    <select class="input-field py-1.5 w-40">
+                        <option value="all">全部状态</option>
+                        <option value="1">运行中</option>
+                        <option value="2">已暂停</option>
+                    </select>
+                    <button class="btn-secondary py-1.5">
+                        <i class="fa fa-refresh"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead>
+                        <tr>
+                            <th class="table-header">ID</th>
+                            <th class="table-header">应用</th>
+                            <th class="table-header">任务名称</th>
+                            <th class="table-header">Cron表达式</th>
+                            <th class="table-header">状态</th>
+                            <th class="table-header">创建时间</th>
+                            <th class="table-header">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="timerList">
+                        <!-- 任务列表将通过JavaScript动态生成 -->
+                        <tr>
+                            <td colspan="7" class="table-cell text-center text-info py-8">
+                                <i class="fa fa-info-circle mr-2"></i>暂无任务数据
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="p-4 border-t border-gray-100 flex justify-between items-center">
+                <div class="text-sm text-info">共 <span id="taskCount">0</span> 条记录</div>
+                <div class="flex gap-2">
+                    <button class="btn-secondary py-1.5 px-3 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                        <i class="fa fa-chevron-left"></i>
+                    </button>
+                    <button class="btn-secondary py-1.5 px-3 bg-primary text-white">1</button>
+                    <button class="btn-secondary py-1.5 px-3 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                        <i class="fa fa-chevron-right"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 创建/编辑定时器模态框 -->
+    <div id="timerModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden">
+        <div class="bg-white rounded-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+            <div class="p-6 border-b border-gray-100 flex justify-between items-center sticky top-0 bg-white z-10">
+                <h2 class="text-xl font-bold" id="modalTitle">创建定时器</h2>
+                <button id="closeModal" class="text-gray-400 hover:text-gray-600 transition-base">
+                    <i class="fa fa-times text-xl"></i>
+                </button>
+            </div>
+            <form id="timerForm" class="p-6 space-y-6">
+                <input type="hidden" id="timerId">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="app" class="block text-sm font-medium text-gray-700 mb-1">应用标识 <span class="text-danger">*</span></label>
+                        <input type="text" id="app" name="app" class="input-field" placeholder="请输入应用标识" required>
+                    </div>
+                    <div>
+                        <label for="name" class="block text-sm font-medium text-gray-700 mb-1">任务名称 <span class="text-danger">*</span></label>
+                        <input type="text" id="name" name="name" class="input-field" placeholder="请输入任务名称" required>
+                    </div>
+                    <div class="md:col-span-2">
+                        <label for="cron" class="block text-sm font-medium text-gray-700 mb-1">Cron表达式 <span class="text-danger">*</span></label>
+                        <input type="text" id="cron" name="cron" class="input-field" placeholder="例如：0/5 * * * * ?" required>
+                        <p id="cronPreview" class="mt-1 text-sm text-info"></p>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-3">HTTP回调配置</label>
+                    <div class="bg-gray-50 rounded-lg p-4 space-y-4">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                                <label for="method" class="block text-sm font-medium text-gray-700 mb-1">请求方法 <span class="text-danger">*</span></label>
+                                <select id="method" name="method" class="input-field" required>
+                                    <option value="GET">GET</option>
+                                    <option value="POST">POST</option>
+                                    <option value="PUT">PUT</option>
+                                    <option value="DELETE">DELETE</option>
+                                </select>
+                            </div>
+                            <div class="md:col-span-2">
+                                <label for="url" class="block text-sm font-medium text-gray-700 mb-1">回调URL <span class="text-danger">*</span></label>
+                                <input type="text" id="url" name="url" class="input-field" placeholder="请输入回调URL" required>
+                            </div>
+                        </div>
+                        <div>
+                            <label for="header" class="block text-sm font-medium text-gray-700 mb-1">请求头 (JSON格式)</label>
+                            <textarea id="header" name="header" class="textarea-field h-24" placeholder='例如：{"Content-Type":"application/json","Authorization":"Bearer token"}'></textarea>
+                        </div>
+                        <div>
+                            <label for="body" class="block text-sm font-medium text-gray-700 mb-1">请求体 (JSON格式)</label>
+                            <textarea id="body" name="body" class="textarea-field h-32" placeholder='例如：{"key":"value"}'></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex justify-end gap-3 pt-4 border-t border-gray-100">
+                    <button type="button" id="cancelForm" class="btn-secondary">取消</button>
+                    <button type="submit" class="btn-primary">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 定时器详情模态框 -->
+    <div id="detailModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden">
+        <div class="bg-white rounded-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+            <div class="p-6 border-b border-gray-100 flex justify-between items-center sticky top-0 bg-white z-10">
+                <h2 class="text-xl font-bold">定时器详情</h2>
+                <button id="closeDetailModal" class="text-gray-400 hover:text-gray-600 transition-base">
+                    <i class="fa fa-times text-xl"></i>
+                </button>
+            </div>
+            <div class="p-6 space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <p class="text-sm text-info mb-1">定时器ID</p>
+                        <p id="detailTimerId" class="font-medium"></p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-info mb-1">应用标识</p>
+                        <p id="detailApp" class="font-medium"></p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-info mb-1">任务名称</p>
+                        <p id="detailName" class="font-medium"></p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-info mb-1">状态</p>
+                        <p id="detailStatus" class="font-medium"></p>
+                    </div>
+                    <div class="md:col-span-2">
+                        <p class="text-sm text-info mb-1">Cron表达式</p>
+                        <p id="detailCron" class="font-medium"></p>
+                    </div>
+                    <div class="md:col-span-2">
+                        <p class="text-sm text-info mb-1">创建时间</p>
+                        <p id="detailCreateTime" class="font-medium"></p>
+                    </div>
+                    <div class="md:col-span-2">
+                        <p class="text-sm text-info mb-1">更新时间</p>
+                        <p id="detailModifyTime" class="font-medium"></p>
+                    </div>
+                </div>
+                
+                <div>
+                    <p class="text-sm text-info mb-3">HTTP回调配置</p>
+                    <div class="bg-gray-50 rounded-lg p-4 space-y-4">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                                <p class="text-sm text-info mb-1">请求方法</p>
+                                <p id="detailMethod" class="font-medium"></p>
+                            </div>
+                            <div class="md:col-span-2">
+                                <p class="text-sm text-info mb-1">回调URL</p>
+                                <p id="detailUrl" class="font-medium break-all"></p>
+                            </div>
+                        </div>
+                        <div>
+                            <p class="text-sm text-info mb-1">请求头</p>
+                            <pre id="detailHeader" class="bg-white p-3 rounded-lg overflow-x-auto text-sm"></pre>
+                        </div>
+                        <div>
+                            <p class="text-sm text-info mb-1">请求体</p>
+                            <pre id="detailBody" class="bg-white p-3 rounded-lg overflow-x-auto text-sm"></pre>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flex justify-end gap-3 pt-4 border-t border-gray-100">
+                    <button id="closeDetail" class="btn-secondary">关闭</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 确认对话框 -->
+    <div id="confirmModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden">
+        <div class="bg-white rounded-xl w-full max-w-md">
+            <div class="p-6">
+                <h3 class="text-xl font-bold mb-3" id="confirmTitle">确认操作</h3>
+                <p id="confirmMessage" class="text-gray-600 mb-6"></p>
+                <div class="flex justify-end gap-3">
+                    <button id="confirmCancel" class="btn-secondary">取消</button>
+                    <button id="confirmOk" class="btn-danger">确认</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 通知提示框 -->
+    <div id="notification" class="fixed top-20 right-4 z-50 max-w-sm bg-white rounded-lg shadow-lg p-4 transform transition-all duration-300 translate-x-full opacity-0 flex items-start gap-3">
+        <div id="notificationIcon" class="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"></div>
+        <div class="flex-1">
+            <h4 id="notificationTitle" class="font-medium text-sm mb-1"></h4>
+            <p id="notificationMessage" class="text-gray-600 text-sm"></p>
+        </div>
+        <button id="closeNotification" class="text-gray-400 hover:text-gray-600">
+            <i class="fa fa-times"></i>
+        </button>
+    </div>
+
+    <script>
+        // 全局变量
+        let currentTimerId = null;
+        let currentOperation = 'create';
+        // API基础URL
+        const API_BASE_URL = 'http://localhost:8080';
+        
+        // DOM 元素
+        const timerModal = document.getElementById('timerModal');
+        const detailModal = document.getElementById('detailModal');
+        const confirmModal = document.getElementById('confirmModal');
+        const notification = document.getElementById('notification');
+        const timerForm = document.getElementById('timerForm');
+        const cronInput = document.getElementById('cron');
+        const cronPreview = document.getElementById('cronPreview');
+        
+        // 初始化页面
+        document.addEventListener('DOMContentLoaded', function() {
+            // 绑定事件
+            document.getElementById('createTimerBtn').addEventListener('click', openCreateModal);
+            document.getElementById('closeModal').addEventListener('click', closeModal);
+            document.getElementById('cancelForm').addEventListener('click', closeModal);
+            document.getElementById('closeDetailModal').addEventListener('click', closeDetailModal);
+            document.getElementById('closeDetail').addEventListener('click', closeDetailModal);
+            document.getElementById('confirmCancel').addEventListener('click', closeConfirmModal);
+            document.getElementById('closeNotification').addEventListener('click', closeNotification);
+            
+            timerForm.addEventListener('submit', handleFormSubmit);
+            cronInput.addEventListener('input', validateCron);
+            
+            // 加载定时器列表
+            loadTimerList();
+        });
+        
+        // 打开创建定时器模态框
+        function openCreateModal() {
+            currentOperation = 'create';
+            currentTimerId = null;
+            document.getElementById('modalTitle').textContent = '创建定时器';
+            
+            // 重置表单
+            timerForm.reset();
+            document.getElementById('timerId').value = '';
+            cronPreview.textContent = '';
+            
+            // 显示模态框
+            timerModal.classList.remove('hidden');
+            // 防止背景滚动
+            document.body.style.overflow = 'hidden';
+        }
+        
+        // 打开编辑定时器模态框
+        function openEditModal(timerId) {
+            currentOperation = 'edit';
+            currentTimerId = timerId;
+            document.getElementById('modalTitle').textContent = '编辑定时器';
+            
+            // 加载定时器数据
+            loadTimerDetail(timerId, function(timer) {
+                // 填充表单
+                document.getElementById('timerId').value = timer.timerId;
+                document.getElementById('app').value = timer.app;
+                document.getElementById('name').value = timer.name;
+                document.getElementById('cron').value = timer.cron;
+                
+                // 填充HTTP回调配置
+                if (timer.notifyHTTPParam) {
+                    document.getElementById('method').value = timer.notifyHTTPParam.method || 'GET';
+                    document.getElementById('url').value = timer.notifyHTTPParam.url || '';
+                    document.getElementById('header').value = JSON.stringify(timer.notifyHTTPParam.header || {}, null, 2);
+                    document.getElementById('body').value = JSON.stringify(timer.notifyHTTPParam.body || {}, null, 2);
+                }
+                
+                // 验证cron表达式
+                validateCron();
+                
+                // 显示模态框
+                timerModal.classList.remove('hidden');
+                // 防止背景滚动
+                document.body.style.overflow = 'hidden';
+            });
+        }
+        
+        // 关闭模态框
+        function closeModal() {
+            timerModal.classList.add('hidden');
+            document.body.style.overflow = 'auto';
+        }
+        
+        // 打开详情模态框
+        function openDetailModal(timerId) {
+            loadTimerDetail(timerId, function(timer) {
+                // 填充详情
+                document.getElementById('detailTimerId').textContent = timer.timerId;
+                document.getElementById('detailApp').textContent = timer.app;
+                document.getElementById('detailName').textContent = timer.name;
+                document.getElementById('detailStatus').textContent = getStatusText(timer.status);
+                document.getElementById('detailStatus').className = timer.status === 1 ? 'font-medium text-success' : 'font-medium text-warning';
+                document.getElementById('detailCron').textContent = timer.cron;
+                document.getElementById('detailCreateTime').textContent = formatDate(timer.createTime);
+                document.getElementById('detailModifyTime').textContent = formatDate(timer.modifyTime);
+                
+                // 填充HTTP回调配置
+                if (timer.notifyHTTPParam) {
+                    document.getElementById('detailMethod').textContent = timer.notifyHTTPParam.method || 'GET';
+                    document.getElementById('detailUrl').textContent = timer.notifyHTTPParam.url || '';
+                    document.getElementById('detailHeader').textContent = JSON.stringify(timer.notifyHTTPParam.header || {}, null, 2);
+                    document.getElementById('detailBody').textContent = JSON.stringify(timer.notifyHTTPParam.body || {}, null, 2);
+                }
+                
+                // 显示模态框
+                detailModal.classList.remove('hidden');
+                // 防止背景滚动
+                document.body.style.overflow = 'hidden';
+            });
+        }
+        
+        // 关闭详情模态框
+        function closeDetailModal() {
+            detailModal.classList.add('hidden');
+            document.body.style.overflow = 'auto';
+        }
+        
+        // 显示确认对话框
+        function showConfirm(title, message, callback) {
+            document.getElementById('confirmTitle').textContent = title;
+            document.getElementById('confirmMessage').textContent = message;
+            
+            // 设置确认回调
+            document.getElementById('confirmOk').onclick = function() {
+                callback();
+                closeConfirmModal();
+            };
+            
+            // 显示对话框
+            confirmModal.classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+        }
+        
+        // 关闭确认对话框
+        function closeConfirmModal() {
+            confirmModal.classList.add('hidden');
+            document.body.style.overflow = 'auto';
+        }
+        
+        // 显示通知
+        function showNotification(title, message, type = 'success') {
+            const notificationIcon = document.getElementById('notificationIcon');
+            
+            // 设置通知类型样式
+            notificationIcon.className = 'w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0';
+            
+            if (type === 'success') {
+                notificationIcon.classList.add('bg-success/10', 'text-success');
+                notificationIcon.innerHTML = '<i class="fa fa-check"></i>';
+            } else if (type === 'error') {
+                notificationIcon.classList.add('bg-danger/10', 'text-danger');
+                notificationIcon.innerHTML = '<i class="fa fa-times"></i>';
+            } else if (type === 'warning') {
+                notificationIcon.classList.add('bg-warning/10', 'text-warning');
+                notificationIcon.innerHTML = '<i class="fa fa-exclamation"></i>';
+            } else if (type === 'info') {
+                notificationIcon.classList.add('bg-primary/10', 'text-primary');
+                notificationIcon.innerHTML = '<i class="fa fa-info"></i>';
+            }
+            
+            // 设置通知内容
+            document.getElementById('notificationTitle').textContent = title;
+            document.getElementById('notificationMessage').textContent = message;
+            
+            // 显示通知
+            notification.classList.remove('translate-x-full', 'opacity-0');
+            
+            // 3秒后自动关闭
+            setTimeout(closeNotification, 3000);
+        }
+        
+        // 关闭通知
+        function closeNotification() {
+            notification.classList.add('translate-x-full', 'opacity-0');
+        }
+        
+        // 验证Cron表达式
+        function validateCron() {
+            const cron = cronInput.value.trim();
+            if (!cron) {
+                cronPreview.textContent = '';
+                return;
+            }
+            
+            // 简单的Cron表达式验证（实际项目中可以使用更复杂的验证逻辑）
+            const cronRegex = /^\s*([0-9*,\-\/]+\s+){4,5}([0-9*,\-\/]+\s*)?$/;
+            
+            if (cronRegex.test(cron)) {
+                cronPreview.textContent = '✓ 有效的Cron表达式';
+                cronPreview.className = 'mt-1 text-sm text-success';
+            } else {
+                cronPreview.textContent = '✗ 无效的Cron表达式';
+                cronPreview.className = 'mt-1 text-sm text-danger';
+            }
+        }
+        
+        // 处理表单提交
+        function handleFormSubmit(event) {
+            event.preventDefault();
+            
+            // 验证表单
+            const app = document.getElementById('app').value.trim();
+            const name = document.getElementById('name').value.trim();
+            const cron = document.getElementById('cron').value.trim();
+            const url = document.getElementById('url').value.trim();
+            
+            if (!app) {
+                showNotification('错误', '请输入应用标识', 'error');
+                return;
+            }
+            
+            if (!name) {
+                showNotification('错误', '请输入任务名称', 'error');
+                return;
+            }
+            
+            if (!cron) {
+                showNotification('错误', '请输入Cron表达式', 'error');
+                return;
+            }
+            
+            if (!url) {
+                showNotification('错误', '请输入回调URL', 'error');
+                return;
+            }
+            
+            // 构建定时器数据
+            const timerData = {
+                app: app,
+                name: name,
+                cron: cron,
+                notifyHTTPParam: {
+                    method: document.getElementById('method').value,
+                    url: url,
+                    header: parseJson(document.getElementById('header').value),
+                    body: parseJson(document.getElementById('body').value)
+                }
+            };
+            
+            // 如果是编辑，添加timerId
+            if (currentOperation === 'edit' && currentTimerId) {
+                timerData.timerId = currentTimerId;
+            }
+            
+            // 提交数据到后端
+            submitTimerData(timerData);
+        }
+        
+        // 解析JSON字符串
+        function parseJson(jsonStr) {
+            if (!jsonStr.trim()) return {};
+            try {
+                return JSON.parse(jsonStr);
+            } catch (e) {
+                showNotification('错误', '无效的JSON格式', 'error');
+                return {};
+            }
+        }
+        
+        // 提交定时器数据
+        function submitTimerData(timerData) {
+            // 创建请求参数
+            const requestData = {
+                app: timerData.app,
+                name: timerData.name,
+                cron: timerData.cron,
+                notifyHTTPParam: timerData.notifyHTTPParam
+            };
+            
+            // 添加请求头
+            const headers = {
+                'Content-Type': 'application/json'
+            };
+            
+            // 构建请求配置
+            const requestConfig = {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify(requestData)
+            };
+            
+            // 发送请求
+            fetch(`${API_BASE_URL}/xtimer/createTimer`, requestConfig)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('网络响应错误');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.code === 0 || data.success) {
+                        showNotification('成功', '定时器创建成功', 'success');
+                        closeModal();
+                        loadTimerList();
+                    } else {
+                        showNotification('错误', data.message || '创建定时器失败', 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('创建定时器失败:', error);
+                    showNotification('错误', '创建定时器失败：' + error.message, 'error');
+                });
+        }
+        
+        // 加载定时器列表
+        function loadTimerList() {
+            const timerList = document.getElementById('timerList');
+            
+            // 显示加载状态
+            timerList.innerHTML = `
+                <tr>
+                    <td colspan="7" class="table-cell text-center text-info py-8">
+                        <i class="fa fa-spinner fa-spin mr-2"></i>加载中...
+                    </td>
+                </tr>
+            `;
+            
+            // 由于后端没有提供获取所有定时器的API，这里先使用模拟数据
+            // 在实际项目中，需要后端提供一个专门的API接口
+            const mockTimers = [
+                {
+                    timerId: 1001,
+                    app: 'bitstorm-api',
+                    name: '订单状态检查',
+                    cron: '0 0/5 * * * ?',
+                    status: 1,
+                    createTime: new Date('2024-01-01 10:00:00'),
+                    modifyTime: new Date('2024-01-02 14:30:00'),
+                    notifyHTTPParam: {
+                        method: 'POST',
+                        url: 'http://localhost:8080/api/order/check',
+                        header: { 'Content-Type': 'application/json' },
+                        body: { type: 'status_check' }
+                    }
+                },
+                {
+                    timerId: 1002,
+                    app: 'bitstorm-pay',
+                    name: '支付结果同步',
+                    cron: '0 0/10 * * * ?',
+                    status: 2,
+                    createTime: new Date('2024-01-03 09:15:00'),
+                    modifyTime: new Date('2024-01-04 16:45:00'),
+                    notifyHTTPParam: {
+                        method: 'GET',
+                        url: 'http://localhost:8080/api/pay/sync',
+                        header: {},
+                        body: {}
+                    }
+                }
+            ];
+            
+            // 更新任务统计
+            document.getElementById('totalTasks').textContent = mockTimers.length;
+            document.getElementById('runningTasks').textContent = mockTimers.filter(t => t.status === 1).length;
+            document.getElementById('pausedTasks').textContent = mockTimers.filter(t => t.status === 2).length;
+            document.getElementById('taskCount').textContent = mockTimers.length;
+            
+            // 清空列表
+            timerList.innerHTML = '';
+            
+            if (mockTimers.length === 0) {
+                // 显示空状态
+                const emptyRow = document.createElement('tr');
+                emptyRow.innerHTML = `
+                    <td colspan="7" class="table-cell text-center text-info py-8">
+                        <i class="fa fa-info-circle mr-2"></i>暂无任务数据
+                    </td>
+                `;
+                timerList.appendChild(emptyRow);
+            } else {
+                // 渲染任务列表
+                mockTimers.forEach(timer => {
+                    const row = document.createElement('tr');
+                    row.className = 'hover:bg-gray-50 transition-base';
+                    
+                    row.innerHTML = `
+                        <td class="table-cell">${timer.timerId}</td>
+                        <td class="table-cell">${timer.app}</td>
+                        <td class="table-cell">
+                            <div class="font-medium">${timer.name}</div>
+                        </td>
+                        <td class="table-cell">${timer.cron}</td>
+                        <td class="table-cell">
+                            <span class="inline-block px-2 py-1 rounded-full text-xs font-medium ${timer.status === 1 ? 'bg-success/10 text-success' : 'bg-warning/10 text-warning'}">
+                                ${getStatusText(timer.status)}
+                            </span>
+                        </td>
+                        <td class="table-cell">${formatDate(timer.createTime)}</td>
+                        <td class="table-cell">
+                            <div class="flex items-center gap-2">
+                                <button class="text-primary hover:text-primary/80 transition-base p-1" title="查看详情" onclick="openDetailModal(${timer.timerId})">
+                                    <i class="fa fa-eye"></i>
+                                </button>
+                                <button class="text-info hover:text-info/80 transition-base p-1" title="编辑" onclick="openEditModal(${timer.timerId})">
+                                    <i class="fa fa-edit"></i>
+                                </button>
+                                ${timer.status === 1 ? 
+                                    `<button class="text-warning hover:text-warning/80 transition-base p-1" title="暂停" onclick="disableTimer(${timer.timerId})">
+                                        <i class="fa fa-pause"></i>
+                                    </button>` : 
+                                    `<button class="text-success hover:text-success/80 transition-base p-1" title="启用" onclick="enableTimer(${timer.timerId})">
+                                        <i class="fa fa-play"></i>
+                                    </button>`
+                                }
+                                <button class="text-danger hover:text-danger/80 transition-base p-1" title="删除" onclick="deleteTimer(${timer.timerId})">
+                                    <i class="fa fa-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    `;
+                    
+                    timerList.appendChild(row);
+                });
+            }
+        }
+        
+        // 加载定时器详情
+        function loadTimerDetail(timerId, callback) {
+            // 构建请求URL
+            const url = `${API_BASE_URL}/xtimer/getTimer?app=bitstorm-api&timerId=${timerId}`;
+            
+            // 发送GET请求
+            fetch(url)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('网络响应错误');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.code === 0 || data.success) {
+                        // 转换notifyHTTPParam为对象
+                        if (data.data && typeof data.data.notifyHTTPParam === 'string') {
+                            try {
+                                data.data.notifyHTTPParam = JSON.parse(data.data.notifyHTTPParam);
+                            } catch (e) {
+                                console.error('解析notifyHTTPParam失败:', e);
+                                data.data.notifyHTTPParam = {};
+                            }
+                        }
+                        callback(data.data);
+                    } else {
+                        // 如果API调用失败，使用模拟数据
+                        const mockTimer = {
+                            timerId: timerId,
+                            app: 'bitstorm-api',
+                            name: '订单状态检查',
+                            cron: '0 0/5 * * * ?',
+                            status: 1,
+                            createTime: new Date('2024-01-01 10:00:00'),
+                            modifyTime: new Date('2024-01-02 14:30:00'),
+                            notifyHTTPParam: {
+                                method: 'POST',
+                                url: 'http://localhost:8080/api/order/check',
+                                header: { 'Content-Type': 'application/json', 'Authorization': 'Bearer token123' },
+                                body: { type: 'status_check', retry: 3 }
+                            }
+                        };
+                        callback(mockTimer);
+                    }
+                })
+                .catch(error => {
+                    console.error('获取定时器详情失败:', error);
+                    // 出错时使用模拟数据
+                    const mockTimer = {
+                        timerId: timerId,
+                        app: 'bitstorm-api',
+                        name: '订单状态检查',
+                        cron: '0 0/5 * * * ?',
+                        status: 1,
+                        createTime: new Date('2024-01-01 10:00:00'),
+                        modifyTime: new Date('2024-01-02 14:30:00'),
+                        notifyHTTPParam: {
+                            method: 'POST',
+                            url: 'http://localhost:8080/api/order/check',
+                            header: { 'Content-Type': 'application/json', 'Authorization': 'Bearer token123' },
+                            body: { type: 'status_check', retry: 3 }
+                        }
+                    };
+                    callback(mockTimer);
+                });
+        }
+        
+        // 启用定时器
+        function enableTimer(timerId) {
+            showConfirm('启用定时器', '确定要启用该定时器吗？', function() {
+                // 构建请求URL
+                const url = `${API_BASE_URL}/xtimer/enableTimer?app=bitstorm-api&timerId=${timerId}`;
+                
+                // 发送GET请求
+                fetch(url)
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('网络响应错误');
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        if (data.code === 0 || data.success || data === 'ok') {
+                            showNotification('成功', '定时器已启用', 'success');
+                            loadTimerList();
+                        } else {
+                            showNotification('错误', data.message || '启用定时器失败', 'error');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('启用定时器失败:', error);
+                        showNotification('错误', '启用定时器失败：' + error.message, 'error');
+                    });
+            });
+        }
+        
+        // 禁用定时器
+        function disableTimer(timerId) {
+            showConfirm('暂停定时器', '确定要暂停该定时器吗？', function() {
+                // 构建请求URL
+                const url = `${API_BASE_URL}/xtimer/unEnableTimer?app=bitstorm-api&timerId=${timerId}`;
+                
+                // 发送GET请求
+                fetch(url)
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('网络响应错误');
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        if (data.code === 0 || data.success || data === 'ok') {
+                            showNotification('成功', '定时器已暂停', 'success');
+                            loadTimerList();
+                        } else {
+                            showNotification('错误', data.message || '暂停定时器失败', 'error');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('暂停定时器失败:', error);
+                        showNotification('错误', '暂停定时器失败：' + error.message, 'error');
+                    });
+            });
+        }
+        
+        // 删除定时器
+        function deleteTimer(timerId) {
+            showConfirm('删除定时器', '确定要删除该定时器吗？此操作不可撤销。', function() {
+                // 构建请求URL
+                const url = `${API_BASE_URL}/xtimer/deleteTimer?app=bitstorm-api&timerId=${timerId}`;
+                
+                // 发送DELETE请求
+                fetch(url, { method: 'DELETE' })
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('网络响应错误');
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        if (data.code === 0 || data.success) {
+                            showNotification('成功', '定时器已删除', 'success');
+                            loadTimerList();
+                        } else {
+                            showNotification('错误', data.message || '删除定时器失败', 'error');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('删除定时器失败:', error);
+                        showNotification('错误', '删除定时器失败：' + error.message, 'error');
+                    });
+            });
+        }
+        
+        // 获取状态文本
+        function getStatusText(status) {
+            switch(status) {
+                case 0: return '新建';
+                case 1: return '运行中';
+                case 2: return '已暂停';
+                default: return '未知';
+            }
+        }
+        
+        // 格式化日期
+        function formatDate(date) {
+            if (!date) return '';
+            
+            const d = new Date(date);
+            const year = d.getFullYear();
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            const hours = String(d.getHours()).padStart(2, '0');
+            const minutes = String(d.getMinutes()).padStart(2, '0');
+            const seconds = String(d.getSeconds()).padStart(2, '0');
+            
+            return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+        }
+        
+        // 全局函数，供HTML中直接调用
+        window.openCreateModal = openCreateModal;
+        window.openEditModal = openEditModal;
+        window.openDetailModal = openDetailModal;
+        window.enableTimer = enableTimer;
+        window.disableTimer = disableTimer;
+        window.deleteTimer = deleteTimer;
+    </script>
+</body>
+</html>
